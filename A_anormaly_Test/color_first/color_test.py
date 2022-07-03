@@ -1,0 +1,61 @@
+#coding=utf-8
+import cv2
+import numpy as np
+
+
+def red_to_black(pic_path):
+    src = cv2.imread(pic_path)
+    # cv2.namedWindow("input", cv2.WINDOW_AUTOSIZE)
+
+    """
+    提取图中的红色部分
+    """
+    hsv = cv2.cvtColor(src, cv2.COLOR_BGR2HSV)
+    low_hsv = np.array([0, 43, 46])
+    high_hsv = np.array([10, 255, 255])
+    mask = cv2.inRange(hsv, lowerb=low_hsv, upperb=high_hsv)
+    cv2.imwrite('red.png', mask)
+
+
+red_to_black('T11.png')
+img = cv2.imread("red.png")
+h, w = img.shape[:2]
+# 获取图像的高和宽 #显示原始图像
+blured = cv2.GaussianBlur(img, (3, 3), 0)
+# cv2.imwrite("blured.png", blured)
+# 进行滤波去掉噪声
+# 显示低通滤波后的图像
+mask = np.zeros((h+2, w+2), np.uint8)
+# 掩码长和宽都比输入图像多两个像素点，满水填充不会超出掩码的非零边缘
+# 进行泛洪填充
+cv2.floodFill(blured, mask, (w-1, h-1), (255, 255, 255), (2, 2, 2), (3, 3, 3), 8)
+# 得到灰度图
+gray = cv2.cvtColor(blured, cv2.COLOR_BGR2GRAY)
+# cv2.imshow("gray.png", gray)
+# 定义结构元素
+kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (20, 20))
+# 开闭运算，先开运算去除背景噪声，再继续闭运算填充目标内的孔洞
+opened = cv2.morphologyEx(gray, cv2.MORPH_OPEN, kernel)
+
+closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel)
+
+# 求二值图
+ret, binary = cv2.threshold(closed, 250, 255, cv2.THRESH_BINARY)
+
+# 找到轮廓
+contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+# 绘制轮廓
+c = []
+ares = []
+for i in contours:
+    ares.append(cv2.contourArea(i))
+    if cv2.contourArea(i) > 2000:
+        c.append(i)
+
+img = cv2.drawContours(img, c, -1, (0, 0, 0), -1)
+cv2.imwrite("result.png", img)
+# cv2.imshow("result_lunkuo", img)
+# 绘制结果
+# cv2.imshow("result", img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
